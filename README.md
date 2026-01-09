@@ -68,10 +68,33 @@ pip install simpy fastapi uvicorn pydantic pandas numpy plotly
 ```
 
 ## Notes
-- Process flow: Build -> Wash1 -> Dry1 -> Support -> Inspect -> Wash2 -> Dry2 -> UV
-- Inspect collects good items into box jobs; defects generate rework jobs
+- End-to-end process flow:
+  Build -> Wash1 -> Dry1 -> SupportRemoval -> Inspect -> Wash2 -> Dry2 -> UV -> Final Storage
+- SupportRemoval returns build plates to the stacker via the Manager and AMR
+- Inspect consumes plate/rework jobs, creates box jobs from good items, and creates rework jobs for defects
+- Wash2/Dry2/UV operate on boxed jobs only (post-inspection)
 - AMR moves are handled by a global priority transport manager
 - Statistics and Gantt charts are driven by `log_SimPy.py`
+
+## Process Details (Post-Processing Included)
+1) Build (Proc_Build)
+   - Prints items on a build plate and assigns defect flags.
+2) Wash1 (Proc_Wash1)
+   - Primary wash for printed plates.
+3) Dry1 (Proc_Dry1)
+   - Primary dry for washed plates.
+4) SupportRemoval (Proc_SupportRemoval)
+   - Removes supports and returns the build plate to storage.
+5) Inspect (Proc_Inspect)
+   - Splits items into good/defect buffers.
+   - Creates boxed jobs when enough good items accumulate.
+   - Defects become rework jobs that re-enter Build.
+6) Wash2 (Proc_Wash2)
+   - Post-inspection wash for boxed items.
+7) Dry2 (Proc_Dry2)
+   - Post-inspection dry for boxed items.
+8) UV (Proc_UV)
+   - Final curing; finished jobs are stored in Manager.final_storage.
 
 ## Operation scenario
 ```mermaid
@@ -81,7 +104,10 @@ sequenceDiagram
     participant P as 3D Printers
     participant WM as Washing Machines
     participant DM as Drying Machines
+    participant SR as Support Removal
     participant IW as Inspect Workers
+    participant UV as UV Machines
+    participant FS as Final Storage
 
     %% Process: Order to Job Creation
     autonumber
@@ -99,15 +125,28 @@ sequenceDiagram
     WM->>DM: Sends job to Drying Machines
     DM-->>DM: Performs air-drying
 
-    %% Process 4: Inspection Process
-    DM->>IW: Sends job to Inspect Workers
+    %% Process 4: Support Removal
+    DM->>SR: Sends job to Support Removal
+    SR-->>SR: Removes supports and returns plate
+
+    %% Process 5: Inspection Process
+    SR->>IW: Sends job to Inspect Workers
     loop Each Item in Job
         IW-->>IW: Inspects item for defects
         alt Defect Found
             IW->>P: Creates new job for defective items and sends to 3D Printers
             Note right of P: Restart from 3D Printers
         else Good Item
-            IW-->>IW: Keeps item as completed
+            IW-->>IW: Buffers good items
         end
     end
+
+    %% Process 6-8: Boxed Post-Processing
+    IW->>WM: Sends boxed jobs to Wash2
+    WM-->>WM: Performs secondary wash
+    WM->>DM: Sends boxed jobs to Dry2
+    DM-->>DM: Performs secondary dry
+    DM->>UV: Sends boxed jobs to UV curing
+    UV-->>UV: Final cure
+    UV->>FS: Store completed jobs
 ```

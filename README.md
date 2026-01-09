@@ -102,10 +102,12 @@ sequenceDiagram
     participant C as Customer
     participant M as Manager
     participant P as 3D Printers
-    participant WM as Washing Machines
-    participant DM as Drying Machines
+    participant WM1 as Washing Machines (Stage 1)
+    participant DM1 as Drying Machines (Stage 1)
     participant SR as Support Removal
     participant IW as Inspect Workers
+    participant WM2 as Washing Machines (Stage 2)
+    participant DM2 as Drying Machines (Stage 2)
     participant UV as UV Machines
     participant FS as Final Storage
 
@@ -118,15 +120,15 @@ sequenceDiagram
     P-->>P: Builds the object
 
     %% Process 2: Washing Process
-    P->>WM: Sends job to Washing Machines
-    WM-->>WM: Performs washing
+    P->>WM1: Sends job to Wash1
+    WM1-->>WM1: Performs primary washing
 
     %% Process 3: Drying Process
-    WM->>DM: Sends job to Drying Machines
-    DM-->>DM: Performs air-drying
+    WM1->>DM1: Sends job to Dry1
+    DM1-->>DM1: Performs primary air-drying
 
     %% Process 4: Support Removal
-    DM->>SR: Sends job to Support Removal
+    DM1->>SR: Sends job to Support Removal
     SR-->>SR: Removes supports and returns plate
 
     %% Process 5: Inspection Process
@@ -142,11 +144,11 @@ sequenceDiagram
     end
 
     %% Process 6-8: Boxed Post-Processing
-    IW->>WM: Sends boxed jobs to Wash2
-    WM-->>WM: Performs secondary wash
-    WM->>DM: Sends boxed jobs to Dry2
-    DM-->>DM: Performs secondary dry
-    DM->>UV: Sends boxed jobs to UV curing
+    IW->>WM2: Sends boxed jobs to Wash2
+    WM2-->>WM2: Performs secondary wash
+    WM2->>DM2: Sends boxed jobs to Dry2
+    DM2-->>DM2: Performs secondary dry
+    DM2->>UV: Sends boxed jobs to UV curing
     UV-->>UV: Final cure
     UV->>FS: Store completed jobs
 ```

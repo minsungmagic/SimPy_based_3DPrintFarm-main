@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3D Print Farm WebSim</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f2ea;
+      --panel: #ffffff;
+      --ink: #1b1b1b;
+      --muted: #6b6b6b;
+      --accent: #1f7a8c;
+      --accent-2: #f2a154;
+      --border: #e6e1d7;
+      --shadow: 0 12px 30px rgba(27, 27, 27, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at top left, #fef4e8 0%, #f6f2ea 48%, #eef4f4 100%);
+    }
+    h1, h2, h3 { font-family: "Space Grotesk", "Segoe UI", sans-serif; }
+    #app {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .title-block h1 { margin: 0; font-size: 2rem; letter-spacing: -0.02em; }
+    .title-block p { margin: 4px 0 0; color: var(--muted); font-size: 0.95rem; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .panel h2 { margin: 0 0 12px; font-size: 1.2rem; }
+    .panel h3 { margin: 16px 0 8px; font-size: 1rem; color: var(--muted); }
+
+    form label { font-size: 0.9rem; color: var(--muted); }
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    input[type="number"],
+    select {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: #fff;
+    }
+    input[type="range"] { width: 140px; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 16px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 8px 20px rgba(31, 122, 140, 0.2);
+    }
+    button.secondary {
+      background: #fff;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      box-shadow: none;
+    }
+    button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+    button:hover:not(:disabled) { transform: translateY(-1px); }
+
+    pre {
+      white-space: pre-wrap;
+      font-size: 0.85rem;
+      background: #f7f5f0;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      max-height: 260px;
+      overflow: auto;
+    }
+    canvas {
+      width: 100%;
+      background: #101214;
+      border-radius: 14px;
+      border: 1px solid #222;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend i {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    .kpi-card {
+      background: #fdfaf4;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+    }
+    .kpi-card span { color: var(--muted); font-size: 0.78rem; }
+    .kpi-card strong { display: block; font-size: 1.1rem; margin-top: 4px; }
+
+    .util-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .util-table th, .util-table td {
+      text-align: left;
+      padding: 6px 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .util-table th { color: var(--muted); font-weight: 500; }
+
+    .anim-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin: 8px 0 12px;
+    }
+    .pill {
+      background: #f1ece2;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="topbar">
+      <div class="title-block">
+        <h1>3D Print Farm Simulation</h1>
+        <p>공정별 KPI와 AMR 지표를 한 번에 확인하고 파라미터를 즉시 실험합니다.</p>
+      </div>
+      <div class="pill" id="status">Ready</div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div class="panel">
+          <h2>Simulation Settings</h2>
+          <form id="simForm">
+            <div class="form-row">
+              <div class="field">
+                <label>Sim Time (min)</label>
+                <input id="simTimeInput" type="number" step="1" />
+              </div>
+              <div class="field">
+                <label>Seed</label>
+                <input id="seedInput" type="number" value="42" />
+              </div>
+              <div class="field">
+                <label>Order Mode</label>
+                <select id="orderModeInput" data-config-key="ORDER_ARRIVAL_MODE" data-type="str">
+                  <option value="continuous">continuous</option>
+                  <option value="interval">interval</option>
+                  <option value="count">count</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Order Interval (min)</label>
+                <input id="orderIntervalInput" type="number" step="1" data-config-key="ORDER_INTERVAL" data-type="float" />
+              </div>
+              <div class="field">
+                <label>Order Count</label>
+                <input id="orderCountInput" type="number" step="1" data-config-key="ORDER_COUNT" data-type="int" />
+              </div>
+            </div>
+            <div class="actions">
+              <button type="submit" id="runBtn">Run Simulation</button>
+              <button type="button" class="secondary" id="resetBtn">Reset Defaults</button>
+            </div>
+          </form>
+
+          <details style="margin-top:12px;">
+            <summary style="cursor:pointer;font-weight:600;">Advanced Parameters</summary>
+            <div style="margin-top:12px;display:grid;gap:16px;">
+              <div>
+                <h3>Orders</h3>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Patients Min</label>
+                    <input type="number" step="1" data-config-key="ORDER_NUM_PATIENTS_MIN" data-type="int" />
+                  </div>
+                  <div class="field">
+                    <label>Patients Max</label>
+                    <input type="number" step="1" data-config-key="ORDER_NUM_PATIENTS_MAX" data-type="int" />
+                  </div>
+                  <div class="field">
+                    <label>Items Min</label>
+                    <input type="number" step="1" data-config-key="ORDER_NUM_ITEMS_MIN" data-type="int" />
+                  </div>
+                  <div class="field">
+                    <label>Items Max</label>
+                    <input type="number" step="1" data-config-key="ORDER_NUM_ITEMS_MAX" data-type="int" />
+                  </div>
+                  <div class="field">
+                    <label>Base Cycle (min)</label>
+                    <input type="number" step="1" data-config-key="CUST_ORDER_CYCLE" data-type="float" />
+                  </div>
+                  <div class="field">
+                    <label>Continuous Check (min)</label>
+                    <input type="number" step="0.1" data-config-key="ORDER_CONTINUOUS_CHECK_INTERVAL" data-type="float" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3>Resources</h3>
+                <div class="form-row">
+                  <div class="field"><label>Build Machines</label><input type="number" step="1" data-config-key="NUM_MACHINES_BUILD" data-type="int" /></div>
+                  <div class="field"><label>Wash1 Machines</label><input type="number" step="1" data-config-key="NUM_MACHINES_WASH1" data-type="int" /></div>
+                  <div class="field"><label>Dry1 Machines</label><input type="number" step="1" data-config-key="NUM_MACHINES_DRY1" data-type="int" /></div>
+                  <div class="field"><label>Wash2 Machines</label><input type="number" step="1" data-config-key="NUM_MACHINES_WASH2" data-type="int" /></div>
+                  <div class="field"><label>Dry2 Machines</label><input type="number" step="1" data-config-key="NUM_MACHINES_DRY2" data-type="int" /></div>
+                  <div class="field"><label>UV Machines</label><input type="number" step="1" data-config-key="NUM_MACHINES_UV" data-type="int" /></div>
+                  <div class="field"><label>Support Workers</label><input type="number" step="1" data-config-key="NUM_WORKERS_SUPPORT" data-type="int" /></div>
+                  <div class="field"><label>Inspect Workers</label><input type="number" step="1" data-config-key="NUM_WORKERS_IN_INSPECT" data-type="int" /></div>
+                  <div class="field"><label>Build Plates (init)</label><input type="number" step="1" data-config-key="INITIAL_NUM_BUILD_PLATES" data-type="int" /></div>
+                  <div class="field"><label>Max Pre-Build Plates</label><input type="number" step="1" data-config-key="MAX_PRE_BUILD_PLATES" data-type="int" /></div>
+                  <div class="field"><label>Max Post-Build Plates</label><input type="number" step="1" data-config-key="MAX_POST_BUILD_PLATES" data-type="int" /></div>
+                </div>
+              </div>
+
+              <div>
+                <h3>Capacities</h3>
+                <div class="form-row">
+                  <div class="field"><label>Build Cap.</label><input type="number" step="1" data-config-key="CAPACITY_MACHINE_BUILD" data-type="int" /></div>
+                  <div class="field"><label>Wash1 Cap.</label><input type="number" step="1" data-config-key="CAPACITY_MACHINE_WASH1" data-type="int" /></div>
+                  <div class="field"><label>Dry1 Cap.</label><input type="number" step="1" data-config-key="CAPACITY_MACHINE_DRY1" data-type="int" /></div>
+                  <div class="field"><label>Wash2 Cap.</label><input type="number" step="1" data-config-key="CAPACITY_MACHINE_WASH2" data-type="int" /></div>
+                  <div class="field"><label>Dry2 Cap.</label><input type="number" step="1" data-config-key="CAPACITY_MACHINE_DRY2" data-type="int" /></div>
+                  <div class="field"><label>UV Cap.</label><input type="number" step="1" data-config-key="CAPACITY_MACHINE_UV" data-type="int" /></div>
+                </div>
+              </div>
+
+              <div>
+                <h3>Process Times (min)</h3>
+                <div class="form-row">
+                  <div class="field"><label>Build</label><input type="number" step="1" data-config-key="PROC_TIME_BUILD" data-type="float" /></div>
+                  <div class="field"><label>Wash1</label><input type="number" step="1" data-config-key="PROC_TIME_WASH1" data-type="float" /></div>
+                  <div class="field"><label>Dry1</label><input type="number" step="1" data-config-key="PROC_TIME_DRY1" data-type="float" /></div>
+                  <div class="field"><label>Support</label><input type="number" step="1" data-config-key="PROC_TIME_SUPPORT" data-type="float" /></div>
+                  <div class="field"><label>Inspect</label><input type="number" step="1" data-config-key="PROC_TIME_INSPECT" data-type="float" /></div>
+                  <div class="field"><label>Wash2</label><input type="number" step="1" data-config-key="PROC_TIME_WASH2" data-type="float" /></div>
+                  <div class="field"><label>Dry2</label><input type="number" step="1" data-config-key="PROC_TIME_DRY2" data-type="float" /></div>
+                  <div class="field"><label>UV</label><input type="number" step="1" data-config-key="PROC_TIME_UV" data-type="float" /></div>
+                </div>
+              </div>
+
+              <div>
+                <h3>Quality & Packing</h3>
+                <div class="form-row">
+                  <div class="field"><label>Defect Rate</label><input type="number" step="0.01" min="0" max="1" data-config-key="DEFECT_RATE_PROC_BUILD" data-type="float" /></div>
+                  <div class="field"><label>Pallet Size</label><input type="number" step="1" data-config-key="PALLET_SIZE_LIMIT" data-type="int" /></div>
+                  <div class="field"><label>Box Size</label><input type="number" step="1" data-config-key="BOX_SIZE" data-type="int" /></div>
+                  <div class="field"><label>Defects / Rework</label><input type="number" step="1" data-config-key="POLICY_NUM_DEFECT_PER_JOB" data-type="int" /></div>
+                </div>
+              </div>
+
+              <div>
+                <h3>Transport</h3>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Move Mode</label>
+                    <select data-config-key="MOVE_MODE" data-type="str">
+                      <option value="AMR">AMR</option>
+                      <option value="MANUAL">MANUAL</option>
+                    </select>
+                  </div>
+                  <div class="field"><label>AMR Count</label><input type="number" step="1" data-config-key="NUM_AMR" data-type="int" /></div>
+                  <div class="field"><label>Manual Movers</label><input type="number" step="1" data-config-key="NUM_MANUAL_MOVERS" data-type="int" /></div>
+                  <div class="field"><label>Distance (m)</label><input type="number" step="0.1" data-config-key="DIST_BETWEEN_STATIONS" data-type="float" /></div>
+                  <div class="field"><label>AMR Speed (m/min)</label><input type="number" step="1" data-config-key="SPEED_AMR_M_PER_MIN" data-type="float" /></div>
+                  <div class="field"><label>Worker Speed (m/min)</label><input type="number" step="1" data-config-key="SPEED_WORKER_M_PER_MIN" data-type="float" /></div>
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <h2>KPI Snapshot</h2>
+          <div class="kpi-grid">
+            <div class="kpi-card"><span>Orders Created</span><strong id="kpiOrders">-</strong></div>
+            <div class="kpi-card"><span>UV Completed Jobs</span><strong id="kpiJobs">-</strong></div>
+            <div class="kpi-card"><span>Final Items</span><strong id="kpiItems">-</strong></div>
+            <div class="kpi-card"><span>Avg Cycle Time (min)</span><strong id="kpiCycle">-</strong></div>
+            <div class="kpi-card"><span>Jobs / Day</span><strong id="kpiJobsDay">-</strong></div>
+            <div class="kpi-card"><span>Items / Day</span><strong id="kpiItemsDay">-</strong></div>
+            <div class="kpi-card"><span>Transport Utilization</span><strong id="kpiTransport">-</strong></div>
+            <div class="kpi-card"><span>Transport Moves</span><strong id="kpiMoves">-</strong></div>
+          </div>
+          <h3>Process Utilization</h3>
+          <table class="util-table">
+            <thead>
+              <tr><th>Process</th><th>Utilization</th></tr>
+            </thead>
+            <tbody id="processUtilBody"></tbody>
+          </table>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <h2>Results</h2>
+          <pre id="resultsPre">Run the simulation to see stats here...</pre>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <h2>Factory Animation</h2>
+
+          <div class="legend">
+            <span><i style="background:#42a5f5;"></i>Plate Job</span>
+            <span><i style="background:#ffb74d;"></i>Item/Other</span>
+            <span><i style="background:#66bb6a;"></i>BOX Job</span>
+            <span><i style="background:#e91e63;"></i>Rework Job</span>
+            <span><i style="background:#e0e0e0;"></i>Order</span>
+          </div>
+
+          <div class="anim-controls">
+            <button id="playPauseBtn" disabled>Play</button>
+            <div>
+              <div style="font-size:0.8rem;color:var(--muted);">Speed (base x10)</div>
+              <input id="speedInput" type="range" min="0.1" max="10" step="0.1" value="1" />
+              <span id="speedLabel">10.0x</span>
+            </div>
+            <span id="timeLabel" class="pill"></span>
+          </div>
+
+          <canvas id="factoryCanvas" width="1000" height="420"></canvas>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h2>Build Plate Status</h2>
+          <pre id="plateStatus">No data. Run a simulation.</pre>
+        </div>
+        <div class="panel" style="margin-top:16px;">
+          <h2>Order / BOX / Rework Events</h2>
+          <pre id="eventLog">No events.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULTS = __DEFAULTS_JSON__;
+
+    const simForm = document.getElementById("simForm");
+    const simTimeInput = document.getElementById("simTimeInput");
+    const seedInput = document.getElementById("seedInput");
+    const runBtn = document.getElementById("runBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const statusPill = document.getElementById("status");
+    const resultsPre = document.getElementById("resultsPre");
+
+    const canvas = document.getElementById("factoryCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const speedInput = document.getElementById("speedInput");
+    const speedLabel = document.getElementById("speedLabel");
+    const timeLabel = document.getElementById("timeLabel");
+
+    const plateStatusPre = document.getElementById("plateStatus");
+    const eventLogPre = document.getElementById("eventLog");
+
+    const orderModeInput = document.getElementById("orderModeInput");
+    const orderIntervalInput = document.getElementById("orderIntervalInput");
+    const orderCountInput = document.getElementById("orderCountInput");
+
+    const kpiOrders = document.getElementById("kpiOrders");
+    const kpiJobs = document.getElementById("kpiJobs");
+    const kpiItems = document.getElementById("kpiItems");
+    const kpiCycle = document.getElementById("kpiCycle");
+    const kpiJobsDay = document.getElementById("kpiJobsDay");
+    const kpiItemsDay = document.getElementById("kpiItemsDay");
+    const kpiTransport = document.getElementById("kpiTransport");
+    const kpiMoves = document.getElementById("kpiMoves");
+    const processUtilBody = document.getElementById("processUtilBody");
+
+    const STATION_BASE = {
+      "Order":               { x:  60, y: 210, label: "Order" },
+      "Proc_Build":          { x: 160, y:  80, label: "Build" },
+      "Proc_Wash1":          { x: 320, y:  80, label: "Wash1" },
+      "Proc_Dry1":           { x: 480, y:  80, label: "Dry1" },
+      "Proc_SupportRemoval": { x: 640, y:  80, label: "Support" },
+      "Proc_Inspect":        { x: 800, y:  80, label: "Inspect" },
+      "Proc_Wash2":          { x: 320, y: 250, label: "Wash2" },
+      "Proc_Dry2":           { x: 480, y: 250, label: "Dry2" },
+      "Proc_UV":             { x: 640, y: 250, label: "UV" },
+      "BOX_Out":             { x: 800, y: 250, label: "BOX Out" }
+    };
+
+    let JOB_TRACE = [];
+    let PLATE_EVENTS = [];
+    let ORDER_EVENTS = [];
+    let JOB_EVENTS = [];
+    let JOB_IDS = [];
+    let MACHINE_INDEX = {};
+    let PLATE_STATE = {};
+
+    let BUILD_INTERVALS_BY_JOB = {};
+    let BOX_ID_MAP = {};
+    let REWORK_ID_MAP = {};
+    let BUFFER_EVENTS = [];
+
+    let simMin = 0;
+    let simMax = 1;
+    let simNow = 0;
+
+    const BASE_SPEED = 10.0;
+    let speedFactor = 1.0;
+    let playing = false;
+    let lastTs = null;
+
+    const JOB_TYPE_COLORS = {
+      plate: "#42a5f5",
+      plate_job: "#42a5f5",
+      box: "#66bb6a",
+      rework: "#e91e63",
+      item: "#ffb74d",
+      order: "#e0e0e0",
+    };
+
+    function applyDefaults() {
+      simTimeInput.value = DEFAULTS.SIM_TIME ?? 0;
+      orderModeInput.value = DEFAULTS.ORDER_ARRIVAL_MODE ?? "continuous";
+
+      document.querySelectorAll("[data-config-key]").forEach(el => {
+        const key = el.dataset.configKey;
+        if (!(key in DEFAULTS)) return;
+        el.value = DEFAULTS[key];
+      });
+      updateOrderModeUI();
+    }
+
+    function updateOrderModeUI() {
+      const mode = (orderModeInput.value || "").toLowerCase();
+      orderCountInput.disabled = mode !== "count";
+      orderCountInput.style.opacity = mode === "count" ? "1" : "0.5";
+    }
+
+    function coerceValue(el) {
+      const type = el.dataset.type || "float";
+      if (type === "int") return parseInt(el.value || "0", 10);
+      if (type === "str") return String(el.value || "").trim();
+      return parseFloat(el.value || "0");
+    }
+
+    function collectOverrides() {
+      const overrides = {};
+      document.querySelectorAll("[data-config-key]").forEach(el => {
+        const key = el.dataset.configKey;
+        const value = coerceValue(el);
+        const base = DEFAULTS[key];
+
+        if (typeof base === "number") {
+          if (Number.isNaN(value) || value === base) return;
+        } else if (String(value) === String(base)) {
+          return;
+        }
+        overrides[key] = value;
+      });
+      return overrides;
+    }
+
+    function renderKPIs(kpis) {
+      if (!kpis) return;
+      kpiOrders.textContent = kpis.orders_created ?? "-";
+      kpiJobs.textContent = kpis.uv_completed_jobs ?? "-";
+      kpiItems.textContent = kpis.final_items ?? "-";
+      kpiCycle.textContent = kpis.avg_cycle_time_min != null ? kpis.avg_cycle_time_min.toFixed(1) : "-";
+      kpiJobsDay.textContent = kpis.jobs_per_day != null ? kpis.jobs_per_day.toFixed(2) : "-";
+      kpiItemsDay.textContent = kpis.items_per_day != null ? kpis.items_per_day.toFixed(2) : "-";
+      kpiTransport.textContent = kpis.transport_utilization != null ? (kpis.transport_utilization * 100).toFixed(1) + "%" : "-";
+      kpiMoves.textContent = kpis.transport_moves ?? "-";
+
+      const util = kpis.process_utilization || {};
+      processUtilBody.innerHTML = "";
+      Object.entries(util).forEach(([proc, value]) => {
+        const row = document.createElement("tr");
+        const nameCell = document.createElement("td");
+        const valueCell = document.createElement("td");
+        nameCell.textContent = proc;
+        valueCell.textContent = value != null ? (value * 100).toFixed(1) + "%" : "-";
+        row.appendChild(nameCell);
+        row.appendChild(valueCell);
+        processUtilBody.appendChild(row);
+      });
+    }
+
+    // ------------------------- index builders -------------------------
+
+    function buildMachineIndex() {
+      MACHINE_INDEX = {};
+      JOB_TRACE.forEach(e => {
+        const stage = e.stage || "UNKNOWN";
+        const resName = e.resource || "R0";
+        if (!MACHINE_INDEX[stage]) MACHINE_INDEX[stage] = {};
+        if (MACHINE_INDEX[stage][resName] === undefined) {
+          const idx = Object.keys(MACHINE_INDEX[stage]).length;
+          MACHINE_INDEX[stage][resName] = idx;
+        }
+      });
+      if (!MACHINE_INDEX["Order"]) {
+        MACHINE_INDEX["Order"] = { "ORDER_QUEUE": 0 };
+      }
+    }
+
+    function buildPlateStateIndex() {
+      PLATE_STATE = {};
+      PLATE_EVENTS.forEach(e => {
+        const pid = e.plate_id;
+        if (pid == null) return;
+        if (!PLATE_STATE[pid]) PLATE_STATE[pid] = [];
+        PLATE_STATE[pid].push(e);
+      });
+    }
+
+    function buildBuildIntervals() {
+      BUILD_INTERVALS_BY_JOB = {};
+      JOB_TRACE.forEach(e => {
+        const stage = e.stage || "";
+        if (stage === "Proc_Build" || stage.includes("Build")) {
+          const jobId = e.id;
+          if (!BUILD_INTERVALS_BY_JOB[jobId]) {
+            BUILD_INTERVALS_BY_JOB[jobId] = [];
+          }
+          BUILD_INTERVALS_BY_JOB[jobId].push({ t0: e.t0, t1: e.t1 });
+        }
+      });
+    }
+
+    function buildBoxIdMap() {
+      BOX_ID_MAP = {};
+      const firstTimeByJob = {};
+
+      JOB_TRACE.forEach(e => {
+        if (e.job_type === "box") {
+          const jobId = e.id;
+          const t = e.t0;
+          if (firstTimeByJob[jobId] == null || t < firstTimeByJob[jobId]) {
+            firstTimeByJob[jobId] = t;
+          }
+        }
+      });
+
+      JOB_EVENTS.forEach(e => {
+        if (e.job_type === "box" || e.stage === "box_created") {
+          const jobId = "JOB-" + e.job_id;
+          const t = e.time ?? 0;
+          if (firstTimeByJob[jobId] == null || t < firstTimeByJob[jobId]) {
+            firstTimeByJob[jobId] = t;
+          }
+        }
+      });
+
+      const entries = Object.entries(firstTimeByJob);
+      entries.sort((a, b) => a[1] - b[1]);
+      entries.forEach(([jobId], idx) => {
+        BOX_ID_MAP[jobId] = idx + 1;
+      });
+    }
+
+    function buildReworkIdMap() {
+      REWORK_ID_MAP = {};
+      const firstTimeByJob = {};
+
+      JOB_TRACE.forEach(e => {
+        if (e.job_type === "rework") {
+          const jobId = e.id;
+          const t = e.t0;
+          if (firstTimeByJob[jobId] == null || t < firstTimeByJob[jobId]) {
+            firstTimeByJob[jobId] = t;
+          }
+        }
+      });
+
+      JOB_EVENTS.forEach(e => {
+        if (e.job_type === "rework" || e.stage === "rework_created") {
+          const jobId = "JOB-" + e.job_id;
+          const t = e.time ?? 0;
+          if (firstTimeByJob[jobId] == null || t < firstTimeByJob[jobId]) {
+            firstTimeByJob[jobId] = t;
+          }
+        }
+      });
+
+      const entries = Object.entries(firstTimeByJob);
+      entries.sort((a, b) => a[1] - b[1]);
+      entries.forEach(([jobId], idx) => {
+        REWORK_ID_MAP[jobId] = idx + 1;
+      });
+    }
+
+    function buildBufferEvents() {
+      const buf = [];
+      JOB_EVENTS.forEach(e => {
+        if (
+          e.stage === "plate_disassembled_at_inspect" ||
+          e.stage === "box_created"
+        ) {
+          if (e.remaining_good_items != null) {
+            buf.push({
+              time: e.time ?? 0,
+              count: e.remaining_good_items,
+            });
+          }
+        }
+      });
+      buf.sort((a, b) => a.time - b.time);
+      BUFFER_EVENTS = buf;
+    }
+
+    // ------------------------- common helpers -------------------------
+
+    function setData(jobTrace, plateEvents, orderEvents, jobEvents, totalSimTime) {
+      JOB_TRACE = jobTrace || [];
+      PLATE_EVENTS = plateEvents || [];
+      ORDER_EVENTS = orderEvents || [];
+      JOB_EVENTS = jobEvents || [];
+
+      const jobSet = new Set();
+      JOB_TRACE.forEach(e => jobSet.add(e.id));
+      JOB_IDS = Array.from(jobSet);
+
+      buildBuildIntervals();
+      buildBoxIdMap();
+      buildReworkIdMap();
+      buildBufferEvents();
+
+      let minT = Infinity;
+      let maxT = -Infinity;
+
+      JOB_TRACE.forEach(e => {
+        if (e.t0 < minT) minT = e.t0;
+        if (e.t1 > maxT) maxT = e.t1;
+      });
+
+      PLATE_EVENTS.forEach(e => {
+        const t = e.time ?? 0;
+        if (t < minT) minT = t;
+        if (t > maxT) maxT = t;
+      });
+
+      ORDER_EVENTS.forEach(e => {
+        const t = e.time ?? 0;
+        if (t < minT) minT = t;
+        if (t > maxT) maxT = t;
+      });
+
+      if (minT === Infinity) {
+        minT = 0;
+        maxT = totalSimTime || 1;
+      }
+
+      simMin = minT;
+      simMax = maxT;
+      simNow = simMin;
+
+      playing = false;
+      playPauseBtn.textContent = "Play";
+      playPauseBtn.disabled = JOB_TRACE.length === 0;
+
+      buildMachineIndex();
+      buildPlateStateIndex();
+      buildEventLogText();
+      render();
+    }
+
+    function getJobColor(jobType) {
+      if (!jobType) return "#ffb74d";
+      if (JOB_TYPE_COLORS[jobType]) return JOB_TYPE_COLORS[jobType];
+      return "#ffb74d";
+    }
+
+    function getJobLabel(jobId, jobType) {
+      let num = jobId.startsWith("JOB-") ? jobId.substring(4) : jobId;
+
+      switch (jobType) {
+        case "plate":
+        case "plate_job":
+          return `PLATE-${num}`;
+        case "box": {
+          const mapped = BOX_ID_MAP[jobId] || num;
+          return `BOX-${mapped}`;
+        }
+        case "rework": {
+          const mapped = REWORK_ID_MAP[jobId] || num;
+          return `REWORK-${mapped}`;
+        }
+        case "item":
+          return `ITM-${num}`;
+        default:
+          return jobId;
+      }
+    }
+
+    function buildEventLogText() {
+      const lines = [];
+
+      ORDER_EVENTS.forEach(e => {
+        const t = (e.time ?? 0).toFixed(1);
+        if (e.stage === "created") {
+          lines.push(
+            `[${t}] ORDER-${e.order_id} created (patients=${e.num_patients}, items=${e.num_items})`
+          );
+        } else {
+          lines.push(`[${t}] ORDER-${e.order_id} : ${e.stage}`);
+        }
+      });
+
+      if (ORDER_EVENTS.length > 0) {
+        lines.push("");
+        lines.push("---- Jobs / BOX / Rework ----");
+      }
+
+      JOB_EVENTS.forEach(e => {
+        const t = (e.time ?? 0).toFixed(1);
+        const baseId = `JOB-${e.job_id}`;
+        const jobType = e.job_type || "job";
+        let line;
+
+        if (e.stage === "box_created") {
+          const label = getJobLabel(baseId, "box");
+          const num = e.num_items_in_box || e.num_items;
+          const fromJob =
+            e.from_job_id != null ? ` from JOB-${e.from_job_id}` : "";
+          const remain =
+            e.remaining_good_items != null
+              ? ` (buffer=${e.remaining_good_items})`
+              : "";
+          if (num != null) {
+            line = `[${t}] ${label} created (${num} items${fromJob})${remain}`;
+          } else {
+            line = `[${t}] ${label} created${fromJob}${remain}`;
+          }
+        } else if (e.stage === "plate_disassembled_at_inspect") {
+          const label = getJobLabel(baseId, "plate");
+          const remain =
+            e.remaining_good_items != null
+              ? ` (good buffer=${e.remaining_good_items})`
+              : "";
+          line = `[${t}] ${label} disassembled at Inspect${remain}`;
+        } else if (e.stage === "rework_created") {
+          const label = getJobLabel(baseId, "rework");
+          const num = e.num_items != null ? ` (${e.num_items} items)` : "";
+          line = `[${t}] ${label} created for rework${num}`;
+        } else {
+          const label = getJobLabel(baseId, jobType);
+          line = `[${t}] ${label} (${jobType}) : ${e.stage}`;
+        }
+
+        lines.push(line);
+      });
+
+      eventLogPre.textContent = lines.length ? lines.join("\n") : "No events.";
+    }
+
+    function getEntryAt(jobId, t) {
+      for (const e of JOB_TRACE) {
+        if (e.id === jobId && e.t0 <= t && t <= e.t1) return e;
+      }
+      return null;
+    }
+
+    function getMachinePosition(stage, resource) {
+      const base = STATION_BASE[stage];
+      if (!base) return null;
+
+      const machines = MACHINE_INDEX[stage];
+      if (!machines || Object.keys(machines).length === 0) {
+        return { x: base.x, y: base.y, label: base.label };
+      }
+
+      const resName = resource || Object.keys(machines)[0];
+      let idx = machines[resName];
+      if (idx === undefined) idx = 0;
+      const count = Object.keys(machines).length;
+      const offsetY = (idx - (count - 1) / 2) * 50;
+
+      return { x: base.x, y: base.y + offsetY, label: base.label + " #" + (idx + 1) };
+    }
+
+    function getPlateStateAtTime(plateId, t) {
+      const events = PLATE_STATE[plateId];
+      if (!events || events.length === 0) return null;
+      let last = null;
+      for (const e of events) {
+        if (e.time <= t) last = e;
+        else break;
+      }
+      return last;
+    }
+
+    function getBufferCountAtTime(t) {
+      if (!BUFFER_EVENTS.length) return 0;
+      let last = 0;
+      for (const e of BUFFER_EVENTS) {
+        if (e.time <= t) last = e.count;
+        else break;
+      }
+      return last;
+    }
+
+    // ------------------------- rendering -------------------------
+
+    function drawStations() {
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      for (const [stage, base] of Object.entries(STATION_BASE)) {
+        const machines = MACHINE_INDEX[stage];
+
+        if (!machines || Object.keys(machines).length === 0) {
+          ctx.strokeStyle = "#666";
+          ctx.strokeRect(base.x - 40, base.y - 20, 80, 40);
+          ctx.fillStyle = "#eee";
+          ctx.fillText(base.label, base.x, base.y - 30);
+        } else {
+          const resourceNames = Object.keys(machines);
+          const count = resourceNames.length;
+          resourceNames.forEach(resName => {
+            const idx = machines[resName];
+            const offsetY = (idx - (count - 1) / 2) * 50;
+            const x = base.x;
+            const y = base.y + offsetY;
+
+            ctx.strokeStyle = "#666";
+            ctx.strokeRect(x - 40, y - 20, 80, 40);
+
+            ctx.fillStyle = "#eee";
+            const label = base.label + " #" + (idx + 1);
+            ctx.fillText(label, x, y - 30);
+          });
+        }
+      }
+    }
+
+    function drawJobs() {
+      const dotOffsetH = 14;
+
+      JOB_IDS.forEach((jobId, idx) => {
+        const entry = getEntryAt(jobId, simNow);
+        if (!entry) return;
+
+        const pos = getMachinePosition(entry.stage, entry.resource);
+        if (!pos) return;
+
+        const y = pos.y + ((idx % 3) - 1) * dotOffsetH;
+        const jobType = entry.job_type || "item";
+        const color = getJobColor(jobType);
+
+        ctx.beginPath();
+        ctx.arc(pos.x, y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#fff";
+
+        const label = getJobLabel(jobId, jobType);
+        ctx.fillText(label, pos.x + 10, y);
+      });
+
+      // Order token
+      ORDER_EVENTS.forEach(e => {
+        if (e.stage !== "created") return;
+        const t = e.time;
+        if (t > simNow) return;
+
+        const pos = getMachinePosition("Order", "ORDER_QUEUE");
+        if (!pos) return;
+
+        const phase = Math.floor((simNow - t) / 10) % 2;
+        const alpha = phase === 0 ? 1.0 : 0.4;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = getJobColor("order");
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Inspect good buffer token
+      const bufCount = getBufferCountAtTime(simNow);
+      if (bufCount > 0) {
+        const baseMachines = MACHINE_INDEX["Proc_Inspect"] || { "Inspect": 0 };
+        const firstRes = Object.keys(baseMachines)[0];
+        const pos = getMachinePosition("Proc_Inspect", firstRes);
+        if (pos) {
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y + 32, 7, 0, Math.PI * 2);
+          ctx.fillStyle = "#ffb74d";
+          ctx.fill();
+
+          ctx.font = "10px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillStyle = "#fff";
+          ctx.fillText("BUF-" + bufCount, pos.x, pos.y + 42);
+        }
+      }
+    }
+
+    function updatePlateStatus() {
+      const plateIds = Object.keys(PLATE_STATE);
+      const bufCount = getBufferCountAtTime(simNow);
+
+      if (plateIds.length === 0) {
+        let html = "<span style='color:#888;'>No plate jobs found.</span>";
+        html += `<br/><br/><span style="color:#9ccc65;font-size:11px;">Good items waiting at Inspect: ${bufCount}</span>`;
+        plateStatusPre.innerHTML = html;
+        return;
+      }
+
+      let cntIdle = 0;
+      let cntLoaded = 0;
+      let cntPrinting = 0;
+      let cntBuilt = 0;
+      const lineHtml = [];
+
+      plateIds
+        .map(pidStr => parseInt(pidStr, 10))
+        .sort((a, b) => a - b)
+        .forEach(pid => {
+          const ev = getPlateStateAtTime(pid, simNow);
+          const baseState = ev ? ev.state : "empty";  // empty / loaded / built
+
+          let derivedState = baseState;
+          if (baseState === "loaded" && ev && ev.current_job_id != null) {
+            const jobLabel = "JOB-" + ev.current_job_id;
+            const intervals = BUILD_INTERVALS_BY_JOB[jobLabel] || [];
+            let isPrinting = false;
+            for (const itv of intervals) {
+              if (itv.t0 <= simNow && simNow <= itv.t1) {
+                isPrinting = true;
+                break;
+              }
+            }
+            derivedState = isPrinting ? "printing" : "loaded";
+          }
+
+          let color = "#888";
+          let labelText = derivedState;
+
+          if (derivedState === "empty") {
+            color = "#ef5350";
+            labelText = "IDLE";
+            cntIdle++;
+          } else if (derivedState === "loaded") {
+            color = "#42a5f5";
+            labelText = "LOADED";
+            cntLoaded++;
+          } else if (derivedState === "printing") {
+            color = "#66bb6a";
+            labelText = "PRINTING";
+            cntPrinting++;
+          } else if (derivedState === "built") {
+            color = "#ffeb3b";
+            labelText = "BUILT";
+            cntBuilt++;
+          }
+
+          const jobStr =
+            ev && ev.current_job_id != null ? `JOB-${ev.current_job_id}` : "None";
+
+          lineHtml.push(
+            `<span style="display:inline-block;">` +
+              `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:4px;"></span>` +
+              `<span>PLATE-${pid}</span>` +
+              `<span style="margin-left:6px;color:#aaa;">${labelText}</span>` +
+              `<span style="margin-left:6px;color:#777;">job: ${jobStr}</span>` +
+            `</span>`
+          );
+        });
+
+      const headerHtml = `
+        <div style="margin-bottom:4px;font-size:11px;">
+          <span style="color:#ef5350;font-weight:bold;">IDLE</span>
+          <span style="margin-left:8px;color:#42a5f5;font-weight:bold;">LOADED</span>
+          <span style="margin-left:8px;color:#66bb6a;font-weight:bold;">PRINTING</span>
+          <span style="margin-left:8px;color:#ffeb3b;font-weight:bold;">BUILT</span>
+        </div>
+        <div style="margin-bottom:4px;font-size:11px;color:#ccc;">
+          Plates: ${plateIds.length}
+          | IDLE: ${cntIdle}
+          | LOADED: ${cntLoaded}
+          | PRINTING: ${cntPrinting}
+          | BUILT: ${cntBuilt}
+        </div>
+        <div style="margin-bottom:4px;font-size:11px;color:#9ccc65;">
+          Good items waiting at Inspect: ${bufCount}
+        </div>
+      `;
+
+      plateStatusPre.innerHTML = headerHtml + lineHtml.join("<br/>");
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawStations();
+      drawJobs();
+      timeLabel.textContent = "Sim Time: " + simNow.toFixed(1) + " (min)";
+      updatePlateStatus();
+    }
+
+    // ------------------------- animation loop -------------------------
+
+    function loop(timestamp) {
+      if (!lastTs) lastTs = timestamp;
+      const dt = (timestamp - lastTs) / 1000;
+      lastTs = timestamp;
+
+      if (playing) {
+        const actualSpeed = BASE_SPEED * speedFactor;
+        simNow += dt * actualSpeed;
+        if (simNow > simMax) simNow = simMin;
+      }
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    // ------------------------- event handlers -------------------------
+
+    orderModeInput.addEventListener("change", updateOrderModeUI);
+
+    playPauseBtn.addEventListener("click", () => {
+      playing = !playing;
+      playPauseBtn.textContent = playing ? "Pause" : "Play";
+    });
+
+    speedInput.addEventListener("input", () => {
+      speedFactor = parseFloat(speedInput.value);
+      const actualSpeed = BASE_SPEED * speedFactor;
+      speedLabel.textContent = actualSpeed.toFixed(1) + "x";
+    });
+
+    resetBtn.addEventListener("click", () => {
+      applyDefaults();
+    });
+
+    simForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      statusPill.textContent = "Running...";
+      runBtn.disabled = true;
+      playPauseBtn.disabled = true;
+
+      const sim_time = parseFloat(simTimeInput.value || "0");
+      const seed = parseInt(seedInput.value || "42");
+      const overrides = collectOverrides();
+
+      try {
+        const res = await fetch("/simulate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sim_time, seed, overrides }),
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+
+        const data = await res.json();
+        if (!data.ok) throw new Error("Simulation failed");
+
+        const r = data.results;
+        resultsPre.textContent = JSON.stringify({ stats: r.stats, kpis: r.kpis }, null, 2);
+        renderKPIs(r.kpis);
+
+        setData(
+          r.job_trace,
+          r.plate_events,
+          r.order_events,
+          r.job_events,
+          r.sim_time
+        );
+
+        statusPill.textContent = "Done";
+      } catch (err) {
+        console.error(err);
+        statusPill.textContent = "Error";
+        plateStatusPre.textContent = "Error: " + err;
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+
+    speedFactor = parseFloat(speedInput.value);
+    speedLabel.textContent = (BASE_SPEED * speedFactor).toFixed(1) + "x";
+    applyDefaults();
+    render();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

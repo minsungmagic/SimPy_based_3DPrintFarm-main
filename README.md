@@ -1,5 +1,19 @@
 # SimPy based 3D Print Farm
 
+Discrete-event simulation for a multi-stage 3D print farm, plus a FastAPI web
+UI for interactive parameter tuning, KPI monitoring, and animated flow
+visualization.
+
+## Visuals
+Gantt charts are generated when running the full SimPy simulation
+(`main_SimPy.py`). The other screenshots are from the web UI.
+
+![Factory animation](docs/images/factory-animation.png)
+
+![Web simulator dashboard](docs/images/web-dashboard.png)
+
+![Job / Rework / Box Processing Gantt Chart](docs/images/gantt-chart.png)
+
 ## How to Run
 ### 1) Run the full simulation
 ```bash
@@ -30,7 +44,8 @@ Configuration lives in `src/config_SimPy.py`.
 - Order generation: `ORDER_ARRIVAL_MODE`, `ORDER_INTERVAL`, `ORDER_COUNT`
 - Plate/box policies: `PALLET_SIZE_LIMIT`, `BOX_SIZE`, `POLICY_*`
 
-When using the web UI, only the parameters whitelisted in `web_sim.py` can be overridden.
+When using the web UI, only the parameters whitelisted in `web_sim.py` can be
+overridden.
 
 ## File Roles
 ### Core logic

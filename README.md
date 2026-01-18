@@ -8,11 +8,11 @@ visualization.
 Gantt charts are generated when running the full SimPy simulation
 (`main_SimPy.py`). The other screenshots are from the web UI.
 
-![Factory animation](docs/images/factory-animation.png)
+<img width="1280" height="360" alt="Gantt_chart" src="https://github.com/user-attachments/assets/1098b494-de02-4645-bab2-11e0a143f67c" />
 
-![Web simulator dashboard](docs/images/web-dashboard.png)
+<img width="1280" height="714" alt="Web_kpi" src="https://github.com/user-attachments/assets/c8d617cc-86d9-4d3b-93ae-ea5692b27347" />
 
-![Job / Rework / Box Processing Gantt Chart](docs/images/gantt-chart.png)
+<img width="1017" height="536" alt="Web_vis" src="https://github.com/user-attachments/assets/0bcec57f-79e2-4f1d-a462-42d02bb80927" />
 
 ## How to Run
 ### 1) Run the full simulation

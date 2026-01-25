@@ -168,13 +168,47 @@ CUST_ORDER_CYCLE = 7 * 24 * 60  # Customer order cycle (1 week in minutes)
 ORDER_DUE_DATE   = 7 * 24 * 60  # Order due date (1 week in minutes)
 
 # Order arrival control
-#   - "continuous": use CUST_ORDER_CYCLE forever
-#   - "interval": use ORDER_INTERVAL forever
-#   - "count": generate ORDER_COUNT orders then stop (uses ORDER_INTERVAL)
-ORDER_ARRIVAL_MODE = "continuous"
-ORDER_INTERVAL = CUST_ORDER_CYCLE
-ORDER_COUNT = 0
-ORDER_CONTINUOUS_CHECK_INTERVAL = 1
+#   - "continuous": create orders when plates are available (check interval below)
+#   - "interval": create orders every ORDER_INTERVAL minutes
+#   - "count": create ORDER_COUNT orders then stop (uses ORDER_INTERVAL)
+ORDER_ARRIVAL_MODE = "count"
+ORDER_INTERVAL = None
+ORDER_COUNT = None
+ORDER_CONTINUOUS_CHECK_INTERVAL = None
+
+ORDER_MODE_DEFAULTS = {
+    "continuous": {
+        "ORDER_INTERVAL": CUST_ORDER_CYCLE,
+        "ORDER_COUNT": 0,
+        "ORDER_CONTINUOUS_CHECK_INTERVAL": 1,
+    },
+    "interval": {
+        "ORDER_INTERVAL": 60,
+        "ORDER_COUNT": 0,
+        "ORDER_CONTINUOUS_CHECK_INTERVAL": 1,
+    },
+    "count": {
+        "ORDER_INTERVAL": 10,
+        "ORDER_COUNT": 100,
+        "ORDER_CONTINUOUS_CHECK_INTERVAL": 1,
+    },
+}
+
+
+def apply_order_mode_defaults():
+    mode = str(ORDER_ARRIVAL_MODE).lower()
+    defaults = ORDER_MODE_DEFAULTS.get(mode, ORDER_MODE_DEFAULTS["interval"])
+
+    global ORDER_INTERVAL, ORDER_COUNT, ORDER_CONTINUOUS_CHECK_INTERVAL
+    if ORDER_INTERVAL is None:
+        ORDER_INTERVAL = defaults["ORDER_INTERVAL"]
+    if ORDER_COUNT is None:
+        ORDER_COUNT = defaults["ORDER_COUNT"]
+    if ORDER_CONTINUOUS_CHECK_INTERVAL is None:
+        ORDER_CONTINUOUS_CHECK_INTERVAL = defaults["ORDER_CONTINUOUS_CHECK_INTERVAL"]
+
+
+apply_order_mode_defaults()
 
 # Order size ranges
 ORDER_NUM_PATIENTS_MIN = 5

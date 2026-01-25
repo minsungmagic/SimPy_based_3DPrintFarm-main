@@ -223,7 +223,7 @@ class Customer:
             if mode == "count" and created >= max_orders:
                 return
 
-            if mode == "interval":
+            if mode in ("interval", "count"):
                 yield self.env.timeout(order_interval)
             elif mode == "continuous":
                 yield self.env.timeout(0)

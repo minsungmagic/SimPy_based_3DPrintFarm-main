@@ -1,5 +1,8 @@
 import argparse
+import importlib
 import json
+import random
+import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 import simpy
@@ -256,6 +259,10 @@ def _check_job_events_vs_history(
 
 
 def run_validation(sim_time: float, seed: int) -> int:
+    random.seed(seed)
+    if hasattr(config, "RANDOM_SEED"):
+        setattr(config, "RANDOM_SEED", seed)
+
     env = simpy.Environment()
     logger = Logger(env)
     manager = Manager(env, logger=logger)
@@ -290,21 +297,229 @@ def run_validation(sim_time: float, seed: int) -> int:
     return 1 if issues else 0
 
 
+_CONFIG_KEYS = [
+    "NUM_MACHINES_BUILD",
+    "CAPACITY_MACHINE_BUILD",
+    "PROC_TIME_BUILD",
+    "DEFECT_RATE_PROC_BUILD",
+    "NUM_MACHINES_WASH1",
+    "NUM_MACHINES_WASH2",
+    "NUM_MACHINES_DRY1",
+    "NUM_MACHINES_DRY2",
+    "NUM_MACHINES_UV",
+    "CAPACITY_MACHINE_WASH1",
+    "CAPACITY_MACHINE_WASH2",
+    "CAPACITY_MACHINE_DRY1",
+    "CAPACITY_MACHINE_DRY2",
+    "CAPACITY_MACHINE_UV",
+    "PROC_TIME_WASH1",
+    "PROC_TIME_WASH2",
+    "PROC_TIME_DRY1",
+    "PROC_TIME_DRY2",
+    "PROC_TIME_UV",
+    "PROC_TIME_SUPPORT",
+    "PROC_TIME_INSPECT",
+    "NUM_WORKERS_SUPPORT",
+    "NUM_WORKERS_IN_INSPECT",
+    "PALLET_SIZE_LIMIT",
+    "BOX_SIZE",
+    "INITIAL_NUM_BUILD_PLATES",
+    "MAX_PRE_BUILD_PLATES",
+    "MAX_POST_BUILD_PLATES",
+    "POLICY_NUM_DEFECT_PER_JOB",
+    "MOVE_MODE",
+    "NUM_AMR",
+    "NUM_MANUAL_MOVERS",
+    "DIST_BETWEEN_STATIONS",
+    "SPEED_AMR_M_PER_MIN",
+    "SPEED_WORKER_M_PER_MIN",
+    "PROC_TIME_MOVE_AMR",
+    "PROC_TIME_MOVE_MANUAL",
+    "CUST_ORDER_CYCLE",
+    "ORDER_DUE_DATE",
+    "ORDER_ARRIVAL_MODE",
+    "ORDER_INTERVAL",
+    "ORDER_COUNT",
+    "ORDER_NUM_PATIENTS_MIN",
+    "ORDER_NUM_PATIENTS_MAX",
+    "ORDER_NUM_ITEMS_MIN",
+    "ORDER_NUM_ITEMS_MAX",
+]
+
+
+_PATCH_MODULE_NAMES = [
+    "base_Customer",
+    "log_SimPy",
+    "manager",
+    "specialized_Process",
+    "specialized_Processor",
+]
+
+
+def _snapshot_config(keys: List[str]) -> Dict[str, Any]:
+    snapshot = {}
+    for key in keys:
+        if hasattr(config, key):
+            snapshot[key] = getattr(config, key)
+    return snapshot
+
+
+def _apply_overrides(overrides: Dict[str, Any]) -> None:
+    for key, value in overrides.items():
+        if hasattr(config, key):
+            setattr(config, key, value)
+
+    for mod_name in _PATCH_MODULE_NAMES:
+        module = sys.modules.get(mod_name)
+        if module is None:
+            try:
+                module = importlib.import_module(mod_name)
+            except Exception:
+                continue
+        for key, value in overrides.items():
+            if hasattr(module, key):
+                setattr(module, key, value)
+
+
+def _generate_random_overrides(rng: random.Random, sim_time: float) -> Dict[str, Any]:
+    move_mode = rng.choice(["AMR", "MANUAL"])
+    dist = rng.uniform(2.0, 10.0)
+    speed_amr = rng.uniform(20.0, 60.0)
+    speed_worker = rng.uniform(30.0, 90.0)
+    proc_time_move_amr = dist / speed_amr
+    proc_time_move_manual = dist / speed_worker
+
+    num_build_plates = rng.randint(5, 20)
+    pallet_size = rng.randint(30, 80)
+    box_size = rng.randint(20, 60)
+
+    cust_cycle = rng.randint(int(sim_time * 0.5), int(sim_time))
+    order_mode = rng.choice(["continuous", "interval", "count"])
+    if order_mode == "count":
+        order_count = rng.randint(1, 6)
+        order_interval = rng.randint(max(1, int(cust_cycle * 0.05)), max(2, int(cust_cycle * 0.2)))
+    else:
+        order_count = 0
+        order_interval = rng.randint(max(1, int(cust_cycle * 0.05)), max(2, int(cust_cycle * 0.5)))
+
+    patients_min = rng.randint(1, 6)
+    patients_max = rng.randint(patients_min, max(patients_min, 8))
+    items_min = rng.randint(20, 60)
+    items_max = rng.randint(items_min, max(items_min, 90))
+
+    overrides = {
+        "NUM_MACHINES_BUILD": rng.randint(1, 8),
+        "CAPACITY_MACHINE_BUILD": rng.randint(1, 3),
+        "PROC_TIME_BUILD": rng.randint(300, 800),
+        "DEFECT_RATE_PROC_BUILD": round(rng.uniform(0.0, 0.2), 3),
+        "NUM_MACHINES_WASH1": rng.randint(1, 3),
+        "NUM_MACHINES_WASH2": rng.randint(1, 3),
+        "NUM_MACHINES_DRY1": rng.randint(1, 3),
+        "NUM_MACHINES_DRY2": rng.randint(1, 3),
+        "NUM_MACHINES_UV": rng.randint(1, 3),
+        "CAPACITY_MACHINE_WASH1": rng.randint(1, 3),
+        "CAPACITY_MACHINE_WASH2": rng.randint(1, 3),
+        "CAPACITY_MACHINE_DRY1": rng.randint(1, 3),
+        "CAPACITY_MACHINE_DRY2": rng.randint(1, 3),
+        "CAPACITY_MACHINE_UV": rng.randint(1, 3),
+        "PROC_TIME_WASH1": rng.randint(60, 180),
+        "PROC_TIME_WASH2": rng.randint(60, 180),
+        "PROC_TIME_DRY1": rng.randint(60, 180),
+        "PROC_TIME_DRY2": rng.randint(60, 180),
+        "PROC_TIME_UV": rng.randint(10, 40),
+        "PROC_TIME_SUPPORT": rng.randint(15, 60),
+        "PROC_TIME_INSPECT": rng.randint(15, 60),
+        "NUM_WORKERS_SUPPORT": rng.randint(1, 3),
+        "NUM_WORKERS_IN_INSPECT": rng.randint(1, 3),
+        "PALLET_SIZE_LIMIT": pallet_size,
+        "BOX_SIZE": box_size,
+        "INITIAL_NUM_BUILD_PLATES": num_build_plates,
+        "MAX_PRE_BUILD_PLATES": num_build_plates,
+        "MAX_POST_BUILD_PLATES": num_build_plates,
+        "POLICY_NUM_DEFECT_PER_JOB": rng.randint(5, 20),
+        "MOVE_MODE": move_mode,
+        "NUM_AMR": rng.randint(1, 3),
+        "NUM_MANUAL_MOVERS": rng.randint(1, 3),
+        "DIST_BETWEEN_STATIONS": round(dist, 2),
+        "SPEED_AMR_M_PER_MIN": round(speed_amr, 2),
+        "SPEED_WORKER_M_PER_MIN": round(speed_worker, 2),
+        "PROC_TIME_MOVE_AMR": proc_time_move_amr,
+        "PROC_TIME_MOVE_MANUAL": proc_time_move_manual,
+        "CUST_ORDER_CYCLE": cust_cycle,
+        "ORDER_DUE_DATE": cust_cycle,
+        "ORDER_ARRIVAL_MODE": order_mode,
+        "ORDER_INTERVAL": order_interval,
+        "ORDER_COUNT": order_count,
+        "ORDER_NUM_PATIENTS_MIN": patients_min,
+        "ORDER_NUM_PATIENTS_MAX": patients_max,
+        "ORDER_NUM_ITEMS_MIN": items_min,
+        "ORDER_NUM_ITEMS_MAX": items_max,
+    }
+
+    return overrides
+
+
+def run_validation_suite(sim_time: float, base_seed: int, experiments: int) -> int:
+    original = _snapshot_config(_CONFIG_KEYS)
+    rng = random.Random(base_seed)
+    failures = 0
+
+    for idx in range(experiments):
+        overrides = _generate_random_overrides(rng, sim_time)
+        run_seed = rng.randint(1, 1_000_000_000)
+        _apply_overrides(overrides)
+
+        print("\n========================================")
+        print(f"Experiment {idx + 1}/{experiments}")
+        print(f"  seed: {run_seed}")
+        print(f"  move_mode: {overrides['MOVE_MODE']}")
+        print(f"  build: machines={overrides['NUM_MACHINES_BUILD']}, "
+              f"capacity={overrides['CAPACITY_MACHINE_BUILD']}, "
+              f"time={overrides['PROC_TIME_BUILD']}")
+        print(f"  wash/dry/uv machines: "
+              f"{overrides['NUM_MACHINES_WASH1']}/"
+              f"{overrides['NUM_MACHINES_WASH2']}/"
+              f"{overrides['NUM_MACHINES_DRY1']}/"
+              f"{overrides['NUM_MACHINES_DRY2']}/"
+              f"{overrides['NUM_MACHINES_UV']}")
+        print(f"  order: mode={overrides['ORDER_ARRIVAL_MODE']}, "
+              f"cycle={overrides['CUST_ORDER_CYCLE']}, "
+              f"patients={overrides['ORDER_NUM_PATIENTS_MIN']}-"
+              f"{overrides['ORDER_NUM_PATIENTS_MAX']}, "
+              f"items={overrides['ORDER_NUM_ITEMS_MIN']}-"
+              f"{overrides['ORDER_NUM_ITEMS_MAX']}")
+
+        result = run_validation(sim_time, run_seed)
+        if result != 0:
+            failures += 1
+
+        _apply_overrides(original)
+
+    print("\n========================================")
+    print(f"Experiments: {experiments}")
+    print(f"Failures: {failures}")
+    print("RESULT: OK" if failures == 0 else "RESULT: FAIL (see per-experiment issues)")
+
+    return 1 if failures else 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate KPIs and event calendar.")
     parser.add_argument("--sim-time", type=float, default=float(config.SIM_TIME))
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--experiments", type=int, default=30)
     parser.add_argument("--fail-exit", action="store_true")
     parser.add_argument("--config-overrides", type=str, default="")
     args = parser.parse_args()
 
     if args.config_overrides:
         overrides = json.loads(args.config_overrides)
-        for key, value in overrides.items():
-            if hasattr(config, key):
-                setattr(config, key, value)
+        _apply_overrides({key: value for key, value in overrides.items() if hasattr(config, key)})
 
-    exit_code = run_validation(args.sim_time, args.seed)
+    if args.experiments > 1:
+        exit_code = run_validation_suite(args.sim_time, args.seed, args.experiments)
+    else:
+        exit_code = run_validation(args.sim_time, args.seed)
     if args.fail_exit:
         raise SystemExit(exit_code)
 
